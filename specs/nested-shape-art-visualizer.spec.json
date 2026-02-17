@@ -1,0 +1,461 @@
+{
+  "meta": {
+    "schema_version": "1.0.0",
+    "product_name": "Nested Shape Art Visualizer",
+    "goal": "Create nested 2D Bezier shapes and visualize them as stacked/rotated ribs in 3D on a mobile phone.",
+    "platforms": ["iOS", "Android"],
+    "primary_input": ["touch_tap", "touch_drag", "pinch_zoom"],
+    "units": {
+      "default_length_unit": "inch",
+      "internal_length_unit": "px",
+      "default_material_thickness_in": 0.11
+    }
+  },
+  "navigation": {
+    "type": "tabs",
+    "tabs": [
+      {
+        "id": "tab_2d",
+        "label": "2-D",
+        "default": true
+      },
+      {
+        "id": "tab_3d",
+        "label": "3-D",
+        "default": false
+      }
+    ]
+  },
+  "data_model": {
+    "project": {
+      "id": "string",
+      "name": "string",
+      "created_at": "iso_datetime",
+      "updated_at": "iso_datetime"
+    },
+    "curve": {
+      "id": "string",
+      "name": "string",
+      "is_closed": "boolean",
+      "segments": [
+        {
+          "type": "cubic_bezier",
+          "p0": { "x": "number", "y": "number" },
+          "p1": { "x": "number", "y": "number" },
+          "p2": { "x": "number", "y": "number" },
+          "p3": { "x": "number", "y": "number" }
+        }
+      ]
+    },
+    "nested_set": {
+      "id": "string",
+      "base_curve_id": "string",
+      "generated_curve_ids": ["string"],
+      "generation_params": {
+        "initial_scale_percent": "number",
+        "final_scale_percent": "number",
+        "min_last_curve_size_percent": "number",
+        "interpolation": {
+          "mode": "string",
+          "options": ["linear", "ease_in_out", "cubic_spline"],
+          "default": "ease_in_out"
+        }
+      }
+    },
+    "color_model": {
+      "gradient": {
+        "start_color": { "format": "rgba", "r": "number", "g": "number", "b": "number", "a": "number" },
+        "end_color": { "format": "rgba", "r": "number", "g": "number", "b": "number", "a": "number" },
+        "interpolation_space": {
+          "mode": "string",
+          "options": ["rgb", "hsl", "lab"],
+          "default": "lab"
+        }
+      },
+      "rib_side_color": { "format": "rgba", "r": "number", "g": "number", "b": "number", "a": "number" }
+    },
+    "export": {
+      "last_export": {
+        "format": "string",
+        "supported_formats": ["svg"],
+        "path": "string",
+        "timestamp": "iso_datetime"
+      }
+    },
+    "rib3d": {
+      "id": "string",
+      "outer_curve_id": "string",
+      "inner_curve_id": "string",
+      "thickness_in": "number",
+      "z_index": "integer",
+      "z_offset_in": "number",
+      "midline": {
+        "polyline": [{ "x": "number", "y": "number" }],
+        "param_domain": [0, 1]
+      },
+      "pivot": {
+        "t": "number",
+        "axis": "z_axis_through_point"
+      },
+      "rotation": {
+        "xy_degrees": "number"
+      },
+      "materials": {
+        "top_face_color_rgba": { "r": "number", "g": "number", "b": "number", "a": "number" },
+        "side_face_color_rgba": { "r": "number", "g": "number", "b": "number", "a": "number" }
+      }
+    }
+  },
+  "features": {
+    "tab_2d": {
+      "canvas": {
+        "gestures": {
+          "tap_add_point": true,
+          "drag_adjust_handles": true,
+          "pinch_zoom": true,
+          "two_finger_pan": true
+        },
+        "rendering": {
+          "antialias": true,
+          "show_control_points": true,
+          "show_handles": true,
+          "show_curve_outline": true
+        }
+      },
+      "curve_creation": {
+        "bezier_type": "cubic",
+        "auto_close": {
+          "enabled": true,
+          "close_when_tap_within_distance_px": 18,
+          "behavior": "snap_last_point_to_first_point_and_close"
+        },
+        "editing": {
+          "move_point": true,
+          "delete_point": true,
+          "insert_point_on_segment": true
+        },
+        "undo_redo": {
+          "enabled": true,
+          "depth": 50
+        }
+      },
+      "nested_generation": {
+        "enabled": true,
+        "ui_controls": [
+          {
+            "id": "slider_initial_scale",
+            "type": "slider",
+            "label": "Next curve size (% of original)",
+            "min": 1,
+            "max": 99,
+            "step": 0.5,
+            "default": 85
+          },
+          {
+            "id": "slider_final_scale",
+            "type": "slider",
+            "label": "Last curve size (% of previous)",
+            "min": 1,
+            "max": 99,
+            "step": 0.5,
+            "default": 92
+          },
+          {
+            "id": "slider_min_last_size",
+            "type": "slider",
+            "label": "Minimum last curve size (% of original)",
+            "min": 0.5,
+            "max": 50,
+            "step": 0.5,
+            "default": 3
+          },
+          {
+            "id": "select_interpolation",
+            "type": "select",
+            "label": "Scale transition",
+            "options": ["linear", "ease_in_out", "cubic_spline"],
+            "default": "ease_in_out"
+          }
+        ],
+        "algorithm_contract": {
+          "input": {
+            "base_curve_id": "string",
+            "initial_scale_percent": "number",
+            "final_scale_percent": "number",
+            "min_last_curve_size_percent": "number",
+            "interpolation": "string"
+          },
+          "output": {
+            "generated_curve_ids": ["string"],
+            "stop_reason": {
+              "type": "string",
+              "options": ["min_size_reached", "max_count_reached", "invalid_geometry"],
+              "default": "min_size_reached"
+            }
+          },
+          "constraints": [
+            "Generate a sequence of nested curves inside the base curve.",
+            "Curve count is determined by min_last_curve_size_percent threshold unless invalid geometry is detected.",
+            "Scale factors between curves must form a smooth progression from initial_scale_percent to final_scale_percent according to interpolation."
+          ]
+        }
+      },
+      "coloring": {
+        "gradient": {
+          "enabled": true,
+          "ui_controls": [
+            { "id": "color_start", "type": "color_picker", "label": "Gradient start color", "default_rgba": [120, 40, 80, 1] },
+            { "id": "color_end", "type": "color_picker", "label": "Gradient end color", "default_rgba": [240, 210, 230, 1] },
+            {
+              "id": "select_color_space",
+              "type": "select",
+              "label": "Gradient interpolation space",
+              "options": ["rgb", "hsl", "lab"],
+              "default": "lab"
+            }
+          ],
+          "mapping": {
+            "mode": "by_curve_index",
+            "description": "Color is interpolated from start_color to end_color across the ordered nested curves."
+          }
+        }
+      },
+      "export": {
+        "enabled": true,
+        "ui_controls": [
+          { "id": "btn_export_svg", "type": "button", "label": "Export Vector (SVG)" }
+        ],
+        "formats": ["svg"],
+        "svg_requirements": [
+          "Export base curve and all nested curves as path elements.",
+          "Preserve cubic Bezier segments (do not flatten to polylines unless explicitly requested).",
+          "Include fill/stroke attributes reflecting gradient colors per curve.",
+          "Use a viewBox matching the 2D canvas bounds."
+        ]
+      }
+    },
+    "tab_3d": {
+      "source_of_truth": {
+        "nested_set_id": "string",
+        "uses_curves_from_2d": true
+      },
+      "ui_controls": [
+        {
+          "id": "slider_material_thickness",
+          "type": "slider",
+          "label": "Material thickness (inches)",
+          "min": 0.01,
+          "max": 1.0,
+          "step": 0.01,
+          "default": 0.11
+        },
+        {
+          "id": "slider_pivot_t",
+          "type": "slider",
+          "label": "Pivot along rib midline",
+          "min": 0,
+          "max": 1,
+          "step": 0.01,
+          "default": 0.5
+        },
+        {
+          "id": "slider_xy_rotation",
+          "type": "slider",
+          "label": "Rib rotation in XY (degrees)",
+          "min": -180,
+          "max": 180,
+          "step": 1,
+          "default": 0
+        },
+        {
+          "id": "color_rib_side",
+          "type": "color_picker",
+          "label": "Rib side color",
+          "default_rgba": [30, 30, 30, 1]
+        }
+      ],
+      "rib_construction": {
+        "definition": "Each adjacent pair of curves forms a rib (annular region).",
+        "pairing_rule": {
+          "rib_i_outer_curve": "curve[i]",
+          "rib_i_inner_curve": "curve[i+1]",
+          "i_range": "0..(N-2)"
+        },
+        "geometry_contract": {
+          "requirements": [
+            "Construct a 2D boundary for each rib as an outer minus inner region.",
+            "Extrude this region by thickness_in to create a 3D mesh.",
+            "Compute a midline curve for each rib (used for pivot selection)."
+          ]
+        }
+      },
+      "stacking_and_transform": {
+        "z_stacking": {
+          "rule": "rib_i.z_offset_in = i * thickness_in",
+          "base_rib_index": 0
+        },
+        "pivot_rotation": {
+          "pivot_point": {
+            "derived_from": "midline_at_t",
+            "t_from_slider": "slider_pivot_t"
+          },
+          "rotation_axis": "z_axis_through_pivot_point",
+          "xy_rotation_degrees_from_slider": "slider_xy_rotation",
+          "apply_to": "all_ribs"
+        }
+      },
+      "rendering": {
+        "camera": {
+          "type": "orbit",
+          "gestures": {
+            "one_finger_rotate": true,
+            "two_finger_pan": true,
+            "pinch_zoom": true
+          },
+          "defaults": {
+            "fov_degrees": 45,
+            "near": 0.01,
+            "far": 1000
+          }
+        },
+        "materials": {
+          "top_faces": "use_2d_gradient_per_rib_index",
+          "side_faces": "use_rib_side_color_picker"
+        },
+        "lighting": {
+          "type": "simple_pbr",
+          "default_setup": ["ambient", "directional"]
+        }
+      }
+    }
+  },
+  "acceptance_criteria": {
+    "2d_curve_creation": [
+      "User can create a cubic Bezier path via tap and drag interactions.",
+      "Tapping near the first point closes the curve and snaps the endpoint to the start point.",
+      "Control points and handles can be edited after creation.",
+      "Undo/redo works for point edits and closure."
+    ],
+    "nested_generation": [
+      "Nested curves are generated inside the base curve.",
+      "Scale progression transitions smoothly from initial_scale_percent to final_scale_percent per selected interpolation.",
+      "Generation stops when the last curve is <= min_last_curve_size_percent of the original (or if geometry becomes invalid)."
+    ],
+    "color_gradient": [
+      "Two color pickers define a gradient across nested curves.",
+      "Gradient interpolation uses the selected color space.",
+      "Each curve is rendered with its assigned gradient color."
+    ],
+    "export_svg": [
+      "Exported SVG contains all curves as Bezier paths.",
+      "SVG preserves curve fidelity (no forced flattening).",
+      "Colors are included and match the on-screen 2D view."
+    ],
+    "3d_ribs": [
+      "Ribs are created from adjacent curve pairs and extruded by thickness_in.",
+      "Ribs are stacked along Z such that rib_i is offset by i * thickness_in.",
+      "Pivot slider selects a point along each rib's midline used for rotation.",
+      "XY rotation slider rotates all ribs around the z-axis through the pivot point.",
+      "Top faces reflect 2D gradient; side faces use the side color picker."
+    ],
+    "mobile_usability": [
+      "All controls are usable on a phone screen without precision stylus input.",
+      "2D and 3D modes update in near real-time when sliders change.",
+      "App remains responsive with at least 60 FPS on a mid-range device for typical rib counts."
+    ]
+  },
+  "testing_plan": {
+    "automated": [
+      {
+        "name": "Auto-close proximity threshold",
+        "type": "unit",
+        "checks": [
+          "Tap within threshold closes curve",
+          "Tap outside threshold does not close curve"
+        ]
+      },
+      {
+        "name": "Nested scale interpolation",
+        "type": "unit",
+        "checks": [
+          "Generated scale factors start at initial_scale_percent and end near final_scale_percent",
+          "Interpolation is monotonic and smooth per selected mode"
+        ]
+      },
+      {
+        "name": "Min last size stop condition",
+        "type": "unit",
+        "checks": [
+          "Generation stops when last curve size threshold is met"
+        ]
+      },
+      {
+        "name": "Rib pairing",
+        "type": "unit",
+        "checks": [
+          "For N curves, exactly N-1 ribs are produced",
+          "Each rib references curve[i] as outer and curve[i+1] as inner"
+        ]
+      },
+      {
+        "name": "Z stacking",
+        "type": "unit",
+        "checks": [
+          "Rib i has z_offset_in == i * thickness_in"
+        ]
+      },
+      {
+        "name": "Export SVG integrity",
+        "type": "integration",
+        "checks": [
+          "SVG parses successfully",
+          "Path counts match curve counts",
+          "Bezier commands exist in output"
+        ]
+      }
+    ],
+    "manual": [
+      {
+        "name": "Touch UX",
+        "steps": [
+          "Create a closed curve with taps and drags",
+          "Adjust control points",
+          "Generate nested curves and scrub sliders",
+          "Switch to 3D and rotate/zoom/pan",
+          "Adjust pivot and rotation sliders and confirm expected rib overlap behavior",
+          "Export SVG and open in external viewer"
+        ],
+        "expected": [
+          "No crashes",
+          "Visual updates match controls",
+          "Export matches design"
+        ]
+      }
+    ],
+    "performance": [
+      {
+        "name": "FPS baseline",
+        "metric": "frames_per_second",
+        "target": ">= 60",
+        "scenario": "Typical nested curve count and 3D rib stack on mid-range device"
+      }
+    ]
+  },
+  "open_questions": [
+    {
+      "id": "oq_1",
+      "question": "How many nested curves (max) should be allowed before capping for performance?",
+      "default_assumption": "Cap at 200 curves and warn user; make configurable later."
+    },
+    {
+      "id": "oq_2",
+      "question": "Should nested curve generation be a pure scale transform or an offset/inset (parallel curve) operation?",
+      "default_assumption": "Use geometric inset/offset when possible; fall back to scale about centroid for invalid offset cases."
+    },
+    {
+      "id": "oq_3",
+      "question": "Should export include strokes only, fills only, or both?",
+      "default_assumption": "Export both stroke and fill to preserve appearance."
+    }
+  ]
+}
