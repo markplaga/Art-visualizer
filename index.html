@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Art Visualizer</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f4f1eb; color: #25231f; }
+    header { padding: 24px; text-align: center; }
+    header h1 { margin: 0 0 8px; font-size: clamp(2rem, 5vw, 3.5rem); }
+    header p { margin: 0; color: #68635b; }
+    main { width: min(1180px, calc(100% - 28px)); margin: 0 auto 40px; display: grid; gap: 18px; grid-template-columns: 320px 1fr; }
+    .panel, .room { background: white; border-radius: 20px; box-shadow: 0 12px 35px rgba(0,0,0,.08); }
+    .panel { padding: 20px; }
+    .control { margin-bottom: 18px; }
+    label { display: block; font-weight: 700; margin-bottom: 7px; }
+    input[type="file"], select, input[type="range"] { width: 100%; }
+    select, input[type="file"] { padding: 10px; border: 1px solid #d8d3ca; border-radius: 10px; background: #fff; }
+    .value { color: #6e675d; font-size: .9rem; }
+    button { width: 100%; padding: 12px; border: 0; border-radius: 12px; font-weight: 700; cursor: pointer; background: #26231f; color: white; }
+    .room { min-height: 650px; position: relative; overflow: hidden; background: linear-gradient(#eee8de 0 72%, #b89973 72%); }
+    .wall { position: absolute; inset: 0 0 28% 0; transition: background .2s; }
+    .floor-line { position: absolute; left: 0; right: 0; bottom: 28%; height: 4px; background: rgba(67,47,30,.17); }
+    .sofa { position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); width: 62%; height: 18%; background: #978d7f; border-radius: 28px 28px 12px 12px; box-shadow: 0 12px 20px rgba(0,0,0,.17); }
+    .sofa::before, .sofa::after { content: ""; position: absolute; bottom: -22px; width: 18px; height: 25px; background: #4d4137; }
+    .sofa::before { left: 12%; } .sofa::after { right: 12%; }
+    #art { position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%); max-width: 60%; max-height: 50%; object-fit: contain; background: #fafafa; box-shadow: 0 12px 32px rgba(0,0,0,.24); border: 14px solid #29231e; display: none; cursor: grab; }
+    #placeholder { position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%); width: 36%; aspect-ratio: 4/3; border: 2px dashed rgba(40,35,30,.35); display: grid; place-items: center; text-align: center; padding: 20px; color: #6d665e; background: rgba(255,255,255,.35); }
+    .hint { margin-top: 16px; font-size: .9rem; line-height: 1.45; color: #6d665e; }
+    @media (max-width: 820px) { main { grid-template-columns: 1fr; } .room { min-height: 520px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Art Visualizer</h1>
+    <p>Upload artwork and preview it in a simple room setting.</p>
+  </header>
+  <main>
+    <section class="panel" aria-label="Visualizer controls">
+      <div class="control">
+        <label for="upload">Artwork image</label>
+        <input id="upload" type="file" accept="image/*" />
+      </div>
+      <div class="control">
+        <label for="size">Artwork size</label>
+        <input id="size" type="range" min="20" max="85" value="48" />
+        <div class="value"><span id="sizeValue">48</span>% of wall width</div>
+      </div>
+      <div class="control">
+        <label for="frame">Frame</label>
+        <select id="frame">
+          <option value="#29231e">Dark wood</option>
+          <option value="#f4f0e8">White</option>
+          <option value="#b58a43">Gold</option>
+          <option value="transparent">No frame</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="wallColor">Wall color</label>
+        <input id="wallColor" type="color" value="#eee8de" />
+      </div>
+      <button id="reset" type="button">Reset view</button>
+      <p class="hint">After uploading, drag the artwork to reposition it. Use the size slider to judge scale.</p>
+    </section>
+
+    <section class="room" id="room" aria-label="Room preview">
+      <div class="wall" id="wall"></div>
+      <div class="floor-line"></div>
+      <div id="placeholder">Upload an image to preview your artwork</div>
+      <img id="art" alt="Uploaded artwork preview" />
+      <div class="sofa"></div>
+    </section>
+  </main>
+
+  <script>
+    const upload = document.getElementById('upload');
+    const art = document.getElementById('art');
+    const room = document.getElementById('room');
+    const placeholder = document.getElementById('placeholder');
+    const size = document.getElementById('size');
+    const sizeValue = document.getElementById('sizeValue');
+    const frame = document.getElementById('frame');
+    const wall = document.getElementById('wall');
+    const wallColor = document.getElementById('wallColor');
+    const reset = document.getElementById('reset');
+
+    let dragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    upload.addEventListener('change', () => {
+      const file = upload.files && upload.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        art.src = e.target.result;
+        art.style.display = 'block';
+        placeholder.style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    size.addEventListener('input', () => {
+      sizeValue.textContent = size.value;
+      art.style.maxWidth = size.value + '%';
+    });
+
+    frame.addEventListener('change', () => {
+      art.style.borderColor = frame.value;
+      art.style.borderWidth = frame.value === 'transparent' ? '0' : '14px';
+    });
+
+    wallColor.addEventListener('input', () => wall.style.background = wallColor.value);
+
+    art.addEventListener('pointerdown', e => {
+      dragging = true;
+      art.setPointerCapture(e.pointerId);
+      const rect = art.getBoundingClientRect();
+      offsetX = e.clientX - rect.left - rect.width / 2;
+      offsetY = e.clientY - rect.top - rect.height / 2;
+      art.style.cursor = 'grabbing';
+    });
+
+    art.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const roomRect = room.getBoundingClientRect();
+      art.style.left = ((e.clientX - roomRect.left - offsetX) / roomRect.width * 100) + '%';
+      art.style.top = ((e.clientY - roomRect.top - offsetY) / roomRect.height * 100) + '%';
+    });
+
+    art.addEventListener('pointerup', () => { dragging = false; art.style.cursor = 'grab'; });
+    art.addEventListener('pointercancel', () => { dragging = false; art.style.cursor = 'grab'; });
+
+    reset.addEventListener('click', () => {
+      size.value = 48;
+      sizeValue.textContent = '48';
+      art.style.maxWidth = '48%';
+      art.style.left = '50%';
+      art.style.top = '30%';
+      frame.value = '#29231e';
+      art.style.borderColor = '#29231e';
+      art.style.borderWidth = '14px';
+      wallColor.value = '#eee8de';
+      wall.style.background = '#eee8de';
+    });
+  </script>
+</body>
+</html>
